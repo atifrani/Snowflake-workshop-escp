@@ -59,6 +59,8 @@ Databases are used to group datasets (**tables**) together. A second-level organ
 
 ![alt text](images/img10.png)
 
+![alt text](images/img18.png)
+
 ### Switch Your System Role Back to SYSADMIN
 
 ![alt text](images/img11.png)
@@ -85,6 +87,8 @@ There are different ways to make a compute resource available to different roles
 
 ![alt text](images/img14.png)
 
+
+
 ### Create a Worksheet & Run Some Code
 
  Snowflake now offers SQL and Python Worksheets. Please choose SQL Worksheets throughout this course. 
@@ -102,9 +106,136 @@ Every worksheet has 4 drop menus near the top. Two are in the upper right corner
 
 ### Load Data manually:
 
-1. Click on this link to download the data loacly in you machine
-1. Open a new worksheet
+### Load structured Data:
 
+1. Click on this link https://github.com/atifrani/Snowflake-workshop-escp/blob/main/Data/employees.csv to download the data localy in you machine.
+2. Open a new SQL worksheet and rename the worksheet **load-empolyees-csv.sql**
+3. Create employees-csv table, copy the script bellow and run it.
+
+```
+USE ROLE SYSADMIN;
+
+USE WAREHOUSE SNOWFLAKE_LEARNING_WH;
+
+USE DATABASE DEMO_DB;
+
+USE SCHEMA PUBLIC;
+
+CREATE OR REPLACE TABLE EMPLOYEES_CSV
+(
+emp_id varchar,
+fname varchar,
+lname varchar,
+adress varchar,
+city varchar,
+state varchar,
+zipcode varchar,
+job_title varchar,
+email varchar,
+active boolean,
+salary int
+);
+```
+4. Add data to tables through the Console web interface
+
+![alt text](images/img19.png)
+
+![alt text](images/img20.png)
+
+![alt text](images/img21.png)
+
+![alt text](images/img22.png)
+
+![alt text](images/img23.png)
+
+5. Query your data
+
+```
+SELECT * FROM EMPLOYEES_CSV;
+```
+
+![alt text](images/img24.png)
+
+
+### Load semi-structured Data:
+
+1. Click on this link https://github.com/atifrani/Snowflake-workshop-escp/blob/main/Data/employees.json to download the data localy in you machine.
+2. Open a new SQL worksheet and rename the worksheet **load-empolyees-json.sql**
+3. Create employees-json table, copy the script bellow and run it.
+
+```
+USE ROLE SYSADMIN;
+
+USE WAREHOUSE SNOWFLAKE_LEARNING_WH;
+
+USE DATABASE DEMO_DB;
+
+USE SCHEMA PUBLIC;
+
+CREATE OR REPLACE TABLE EMPLOYEES_JSON
+(
+V VARIANT
+);
+```
+4. Add data to tables through the Console web interface
+
+![alt text](images/img25.png)
+
+![alt text](images/img26.png)
+
+![alt text](images/img28.png)
+
+![alt text](images/img29.png)
+
+4. Query your data
+
+```
+SELECT * FROM EMPLOYEES_JSON;
+```
+
+![alt text](images/img30.png)
+
+6. Querying Semi-Structured Data
+
+```
+Select 
+    V:emp_id ,
+    V:fname ,
+    V:lname ,
+    V:adress ,
+    V:city ,
+    V:state ,
+    V:zipcode ,
+    V:job_title ,
+    V:email ,
+    V:active ,
+    V:salary 
+from EMPLOYEES_JSON;
+```
+7. Convert Semi-Structured data to Structured data.
+
+```
+CREATE OR REPLACE VIEW EMPLOYEES_VIEW
+AS
+Select 
+    V:emp_id ,
+    V:fname ,
+    V:lname ,
+    V:adress ,
+    V:city ,
+    V:state ,
+    V:zipcode ,
+    V:job_title ,
+    V:email ,
+    V:active ,
+    V:salary 
+from EMPLOYEES_JSON;
+```
+8. Query your data from the view:
+
+```
+SELECT * FROM EMPLOYEES_VIEW
+```
 
 ## 🔍 Workshop Introduction: Become an Analytics Engineer at Airbnb (Berlin)
 
