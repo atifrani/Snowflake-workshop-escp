@@ -420,14 +420,14 @@ USE WAREHOUSE SNOWFLAKE_LEARNING_WH;
 USE DATABASE AIRBNB;
 ```
 
-* Create SLIVER SCHEMA:
+* Create SILVER SCHEMA:
 ```
-CREATE SCHEMA SLIVER;
+CREATE SCHEMA SILVER;
 ```
 
 * Set the SCHEMA
 ```
-USE SCHEMA SLIVER;
+USE SCHEMA SILVER;
 ```
 
 * Create table HOSTS:
@@ -571,3 +571,177 @@ CREATE OR REPLACE TABLE FULL_MOON_DATE
 );
 ```
 Load data into FULL_MOON_DATE table using the snowflake web console.
+
+### STEP 6:
+
+Next, we'll build a data mart to examine the correlation between review sentiment (positive vs. negative) and full moon occurrences.
+
+Create a new SQL worksheet and rename it **analyze-airbnb-data.Sql**.
+
+* Set Role Context:
+```
+USE ROLE ACCOUNTADMIN;
+```
+
+* Set Warehouse Context:
+```
+USE WAREHOUSE SNOWFLAKE_LEARNING_WH;
+```
+
+* Set the Database
+```
+USE DATABASE AIRBNB;
+```
+
+* Create GOLD SCHEMA:
+```
+CREATE SCHEMA GOLD;
+```
+
+* Set the SCHEMA
+```
+USE SCHEMA GOLD;
+```
+
+* Create tabel FULL_MOON_REVIEWS
+
+```
+CREATE OR REPLACE TABLE FULL_MOON_REVIEWS
+AS
+SELECT 
+    fr.*, 
+    CASE 
+        WHEN fm.date_day IS NULL THEN 'not full moon'
+        ELSE 'full moon'
+    END AS is_full_moon
+FROM 
+    SILVER.FACT_REVIEWS fr 
+JOIN 
+    SILVER.FULL_MOON_DATE fm 
+ON 
+    (TO_DATE(fr.REVIEW_DATE) = DATEADD(DAY, 1, fm.date_day));
+```
+
+* Query table FULL_MOON_REVIEWS:
+
+```
+SELECT * FROM FULL_MOON_REVIEWS;
+```
+
+```
+select count(*) as nb_reviews, sentiment from FULL_MOON_REVIEWS
+group by sentiment;
+```
+
+### STEP 7:
+
+**Snowflake Cortex AI:**
+Snowflake Cortex AI is a fully managed service designed to unlock the technology’s potential for everyone within an organization, regardless of their technical capabilities. It provides access to industry-leading large language models (**LLMs**), enabling users to easily build and deploy AI-powered applications.
+
+In this blog, we explore **Cortex Analyst**, one of the superstars of the Snowflake Cortex AI family.
+
+**Cortex Analyst:**  
+Cortex Analyst enables business users to interact with structured data using natural language, allowing them to find answers faster, self-serve insights, and save valuable time.  
+
+Let’s start with a simple example using the TRANSLATE function:
+
+```
+select SNOWFLAKE.CORTEX.TRANSLATE('Hello Everyone', '', 'fr') AS greeting;
+```
+
+The REVIEW_TEXT column in FACT_REVIEWS contains reviews in various languages. Let's first translate them into English to check if the sentiment matches the review text.
+
+* CREATE a new WareHouse with more compute
+
+```
+CREATE OR REPLACE WAREHOUSE LARGE_COMPUTE_WH WITH
+COMMENT = 'Large warehouse for cortex analyst'
+    WAREHOUSE_TYPE = 'standard'
+    WAREHOUSE_SIZE = 'large'
+    MIN_CLUSTER_COUNT = 1
+    MAX_CLUSTER_COUNT = 2
+    SCALING_POLICY = 'standard'
+    AUTO_SUSPEND = 60
+    AUTO_RESUME = true
+    INITIALLY_SUSPENDED = true;
+```
+
+* Set the warehouse
+
+```
+USE WAREHOUSE LARGE_COMPUTE_WH;
+```
+
+```
+CREATE OR REPLACE TABLE FULL_MOON_REVIEWS_TRANSLATED AS
+SELECT 
+    LISTING_ID,
+    REVIEW_DATE, 
+    REVIEWER_NAME, 
+    REVIEW_TEXT, 
+    SNOWFLAKE.CORTEX.TRANSLATE(REVIEW_TEXT, '', 'en') AS TRANSLATED_REVIEW_TEXT,
+    SENTIMENT,
+    IS_FULL_MOON  
+    FROM FULL_MOON_REVIEWS;
+```
+
+* Next, we'll use Snowflake Cortex's pre-trained models to generate sentiment scores for each review.
+
+```
+CREATE OR REPLACE TABLE FULL_MOON_REVIEWS_AUGMENTED AS
+SELECT 
+    LISTING_ID,
+    REVIEW_DATE, 
+    REVIEWER_NAME, 
+    TRANSLATED_REVIEW_TEXT,
+    SENTIMENT,
+    SNOWFLAKE.CORTEX.SENTIMENT(TRANSLATED_REVIEW_TEXT) AS SENTIMENT_GENERATED,
+    IS_FULL_MOON  
+    FROM FULL_MOON_REVIEWS_TRANSLATED;
+```
+
+* Sentiment scores range from -1 (completely negative) to 1 (completely positive). We’ll classify them into three categories: negative (-1 to –0.3), neutral (-0.3 to 0.3), and positive (0.3 to 1).
+
+```
+select min(SENTIMENT_GENERATED), max(SENTIMENT_GENERATED) from FULL_MOON_REVIEWS_AUGMENTED;
+```
+
+```
+CREATE OR REPLACE TABLE FULL_MOON_REVIEWS_AUGMENTED AS
+SELECT 
+    LISTING_ID,
+    REVIEW_DATE, 
+    REVIEWER_NAME, 
+    TRANSLATED_REVIEW_TEXT,
+    SENTIMENT,
+    CASE 
+        WHEN SNOWFLAKE.CORTEX.SENTIMENT(TRANSLATED_REVIEW_TEXT) < -0.3 THEN 'negative'
+     
+        WHEN SNOWFLAKE.CORTEX.SENTIMENT(TRANSLATED_REVIEW_TEXT) BETWEEN -0.3 AND 0.3  THEN 'neutral'
+     
+        WHEN SNOWFLAKE.CORTEX.SENTIMENT(TRANSLATED_REVIEW_TEXT) > 0.3 THEN 'positive'
+    END AS  SENTIMENT_GENERATED,
+    IS_FULL_MOON  
+    FROM FULL_MOON_REVIEWS_TRANSLATED;
+```
+
+* Query table FULL_MOON_REVIEWS_AUGMENTED
+
+```
+SELECT * FROM FULL_MOON_REVIEWS_AUGMENTED
+```
+
+* In the following examples, we'll demonstrate how to leverage the EXTRACT_ANSWER and SUMMARIZE functions to gain more insights from our data
+
+**EXTRACT_ANSWER:**
+
+```
+select TRANSLATED_REVIEW_TEXT,SENTIMENT_GENERATED, SNOWFLAKE.CORTEX.EXTRACT_ANSWER(TRANSLATED_REVIEW_TEXT, 'Were the guests satisfied with their stay?'):[answer] as extract_answer
+from FULL_MOON_REVIEWS_AUGMENTED limit 100;
+```
+
+**SUMMARIZE:**
+```
+select TRANSLATED_REVIEW_TEXT, SNOWFLAKE.CORTEX.SUMMARIZE(TRANSLATED_REVIEW_TEXT) as Summary
+from full_moon_reviews_translated limit 100;
+```
