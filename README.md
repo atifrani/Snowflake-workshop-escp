@@ -268,7 +268,8 @@ By the end of this workshop, you’ll have a solid understanding of how a modern
 
 
 ### Step 1: 
-To start, let's set role and warehouse context.
+To start, open a new SQL worksheet and rename it **load-airbnb-data.sql**.
+let's set role and warehouse context.
 **To run a single query, place your cursor in the query editor and select the Run button**
 
 * Set Role Context:
@@ -286,7 +287,7 @@ Now, let's create Database and tables
 
 * Create airbnb database:
 ```
-CREAT OR REPLACE DATABASE AIRBNB;
+CREATE OR REPLACE DATABASE AIRBNB;
 ```
 
 * Set the Database
@@ -338,19 +339,25 @@ The **VARIANT** data type in Snowflake stores semi-structured data like JSON, Av
 
 ### Step 3: 
 Create Stage objects. 
-A stage specifies where data files are stored. In our case the files are stored in S3 bucket **escp-snowflake-lab**
+A stage specifies where data files are stored. In our case the files are stored in S3 bucket **escp-snowflake-lab-2025**
 
 ![alt text](images/airbnb-files.png)
 
 ```
-CREATE OR REPLACE STAGE bronze.airbnb-stage
-  URL = 's3://escp-snowflake-lab/data/';
+CREATE OR REPLACE STAGE airbnb_stage
+  URL = 's3://escp-snowflake-lab-2025/data/'
+  STORAGE_PROVIDER = 'S3'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://escp-snowflake-lab/');
 ```
 
 * View our Stages:
 
 ```
 SHOW STAGES;
+```
+
+```
+LIST @airbnb_stage;
 ```
 
 ### Step 4: 
@@ -360,42 +367,58 @@ Load data from the Amazon S3 Stage into the Table
 * Load Data into table raw_hosts:  
 
 ```
-COPY INTO bronze.raw_hosts
-FROM @airbnb-stage/raw_hosts.csv
+COPY INTO raw_hosts
+FROM @airbnb_stage/raw_hosts.csv
 FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"');
 ```
 * Start querying your Data
 ```
-select * from bronze.raw_hosts
+select * from raw_hosts
 ```
 
 * Load Data into table raw_reviews:  
 
 ```
-COPY INTO bronze.raw_reviews
-FROM @airbnb-stage/raw_reviews.csv
+COPY INTO raw_reviews
+FROM @airbnb_stage/raw_reviews.csv
 FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"');
 ```
 
 * Start querying your Data
 ```
-select * from bronze.raw_reviews;
+select * from raw_reviews;
 ```
 
 * Load Data into table raw_listings:  
 
 ```
-COPY INTO bronze.raw_listings
-FROM @my_external_csv_stage/raw_listings.json
+COPY INTO raw_listings
+FROM @airbnb_stage/raw_listings.json
 FILE_FORMAT = (TYPE ='JSON');
 ```
 * Start querying your Data
 ```
-select * from bronze.raw_listings;
+select * from raw_listings;
 ```
 
 ### Step 5: 
 Now, we need to clean the data and apply some transformations.
+Create a new SQL worksheet and rename it **transform-airbnb-data.Sql**.
+
+* Set Role Context:
+```
+USE ROLE ACCOUNTADMIN;
+```
+
+* Set Warehouse Context:
+```
+USE WAREHOUSE SNOWFLAKE_LEARNING_WH;
+```
+
+* Set the Database
+```
+USE DATABASE AIRBNB;
+```
 
 * Create SLIVER SCHEMA:
 ```
@@ -407,8 +430,10 @@ CREATE SCHEMA SLIVER;
 USE SCHEMA SLIVER;
 ```
 
+* Create table HOSTS:
+
 ```
-CREATE OR REPLACE TABLE silver.hosts 
+CREATE OR REPLACE TABLE hosts 
 AS
 SELECT
     id AS host_id,
@@ -418,8 +443,17 @@ SELECT
     updated_at
 FROM bronze.raw_hosts;
 ```
+
+* Query table HOSTS:
+
 ```
-CREATE OR REPLACE TABLE silver.reviews 
+SELECT * FROM HOSTS;
+```
+
+* Create table REVIEWS:
+
+```
+CREATE OR REPLACE TABLE reviews 
 AS
 SELECT
     listing_id,
@@ -429,9 +463,16 @@ SELECT
     sentiment
 FROM bronze.raw_reviews;
 ```
+* Query table REVIEWS:
 
 ```
-CREATE OR REPLACE TABLE silver.listings 
+SELECT * FROM REVIEWS;
+```
+
+* Create table LISTINGS:
+
+```
+CREATE OR REPLACE TABLE listings 
 AS
 SELECT
     data:ID::INT AS id,
@@ -445,3 +486,88 @@ SELECT
     data:UPDATED_AT::TIMESTAMPTZ AS updated_at
 FROM bronze.raw_listings;
 ```
+
+* Query table LISTINGS:
+
+```
+SELECT * FROM LISTINGS;
+```
+
+### Step 6: 
+
+Now that we have the complete dataset, let's develop a data model to support our analytics.
+
+![alt text](images/data_model_silver.png)
+
+* Create table DIM_HOSTS
+
+```
+CREATE OR REPLACE VIEW dim_hosts AS
+SELECT
+    host_id::INT AS host_id,
+    NVL(host_name::STRING, 'Anonymous') AS host_name,
+    IS_SUPERHOST::BOOLEAN AS IS_SUPERHOST,
+    CREATED_AT::TIMESTAMPTZ AS CREATED_AT,
+    UPDATED_AT::TIMESTAMPTZ AS UPDATED_AT
+FROM hosts;
+```
+* Query table DIM_HOSTS
+
+```
+Select * from DIM_HOSTS;
+```
+
+* Create table DIM_LISTINGS
+
+```
+CREATE OR REPLACE VIEW dim_listings AS
+SELECT
+    ID AS LISTING_ID,
+    LISTING_URL,
+    NAME AS LISTING_NAME,
+    ROOM_TYPE,
+    CASE 
+        WHEN (MINIMUM_NIGHTS)::INT IS NULL THEN 1
+        WHEN (MINIMUM_NIGHTS)::INT = 0 THEN 1 
+        ELSE (MINIMUM_NIGHTS)::INT 
+    END AS MINIMUM_NIGHTS,
+    HOST_ID,
+    TO_NUMBER(REPLACE(PRICE, '$', ''))::INT AS PRICE,
+    CREATED_AT,
+    UPDATED_AT
+FROM listings;
+```
+
+* Query table DIM_HOSTS
+
+```
+Select * from DIM_LISTINGS;
+```
+
+* Create table FACT_REVIEWS
+
+```
+CREATE OR REPLACE TABLE fact_reviews
+  AS
+  SELECT 
+    *
+  FROM reviews
+  WHERE review_text IS NOT NULL
+  order by review_date desc;
+```
+
+* Query table FACT_REVIEWS
+
+```
+Select * from FACT_REVIEWS;
+```
+
+* Create table FULL_MOON_DATE:
+
+```
+CREATE OR REPLACE TABLE FULL_MOON_DATE
+(
+    date_day date
+);
+```
+Load data into FULL_MOON_DATE table using the snowflake web console.
