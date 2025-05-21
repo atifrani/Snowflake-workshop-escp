@@ -743,5 +743,94 @@ from FULL_MOON_REVIEWS_AUGMENTED limit 100;
 **SUMMARIZE:**
 ```
 select TRANSLATED_REVIEW_TEXT, SNOWFLAKE.CORTEX.SUMMARIZE(TRANSLATED_REVIEW_TEXT) as Summary
-from full_moon_reviews_translated limit 100;
+from FULL_MOON_REVIEWS_AUGMENTED limit 100;
 ```
+
+
+
+## TODO: use cortex to generate streamlit code.
+
+
+## Build Data Web Apps:
+
+**Streamlit** is an open-source Python library that makes it easy to create and share custom web apps for data analytics and data science.
+
+We'll begin by developing our first web app based on Airbnb data.
+
+![alt text](images/img31.png)
+
+
+![alt text](images/img32.png)
+
+* Copy and past the follwing python code in the worksheet.
+
+```
+import streamlit as st
+from snowflake.snowpark.context import get_active_session
+
+
+st.title(f"AIRBNB Web App")
+st.write(
+  """This is our first Streamlit web app 
+     application baseb on AIRBNB data!
+  """
+)
+
+# Get connection
+session = get_active_session()
+
+# execute sql statement
+sql = f"select count(*) as NB_LISTINGS, SENTIMENT_GENERATED from  AIRBNB.GOLD.FULL_MOON_REVIEWS_AUGMENTED group by SENTIMENT_GENERATED order by NB_LISTINGS asc;"
+
+data = session.sql(sql).collect()
+
+# Create a simple bar chart
+
+st.subheader("Sentiment-Based Distribution of Listings")
+st.bar_chart(data=data, x="SENTIMENT_GENERATED", y="NB_LISTINGS", color="SENTIMENT_GENERATED")
+
+st.subheader("Underlying data")
+st.dataframe(data, use_container_width=True)
+
+```
+
+![alt text](images/img33.png)
+
+* Next, we'll improve the bar chart by incorporating interactive filters for a more dynamic user experience.
+
+```
+import streamlit as st
+from snowflake.snowpark.context import get_active_session
+
+
+st.title(f"AIRBNB Web App")
+st.write(
+  """This is our first Streamlit web app 
+     application baseb on AIRBNB data!
+  """
+)
+
+# Get connection
+session = get_active_session()
+
+# Create a select box
+option = st.selectbox(
+     'Select the Review Name?',
+( 'Michael','Daniel','Thomas','David','Anna','Laura','Alexander','Julia','Maria','Martin','Andrea','Sarah','Christian','Lisa','Alex','Simon','Mark','Chris','Paul','Stefan','Nicole','Robert'))
+
+# execute sql statement
+sql = f"select count(*) as NB_LISTINGS, SENTIMENT_GENERATED from  AIRBNB.GOLD.FULL_MOON_REVIEWS_AUGMENTED  where reviewer_name= '{option}'group by SENTIMENT_GENERATED order by NB_LISTINGS asc;"
+
+data = session.sql(sql).collect()
+
+# Create a simple bar chart
+
+st.subheader("Sentiment-Based Distribution of Listings")
+st.bar_chart(data=data, x="SENTIMENT_GENERATED", y="NB_LISTINGS", color="SENTIMENT_GENERATED")
+
+st.subheader("Underlying data")
+st.dataframe(data, use_container_width=True)
+
+```
+![alt text](images/img34.png)
+
