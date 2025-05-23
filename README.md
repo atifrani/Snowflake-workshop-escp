@@ -633,7 +633,7 @@ select count(*) as nb_reviews, sentiment from FULL_MOON_REVIEWS
 group by sentiment;
 ```
 
-### STEP 7:
+### STEP 7: Customer Review Analytics
 
 **Snowflake Cortex AI:**
 Snowflake Cortex AI is a fully managed service designed to unlock the technology’s potential for everyone within an organization, regardless of their technical capabilities. It provides access to industry-leading large language models (**LLMs**), enabling users to easily build and deploy AI-powered applications.
@@ -747,11 +747,7 @@ from FULL_MOON_REVIEWS_AUGMENTED limit 100;
 ```
 
 
-
-## TODO: use cortex to generate streamlit code.
-
-
-## Build Data Web Apps:
+### Step8 : Build Data Web Apps:
 
 **Streamlit** is an open-source Python library that makes it easy to create and share custom web apps for data analytics and data science.
 
@@ -833,6 +829,57 @@ st.dataframe(data, use_container_width=True)
 
 ```
 ![alt text](images/img34.png)
+
+
+### Step 9: Use Copilot to analyze data.
+
+For this part, we will use **SNOWFLAKE_SAMPLE_DATE** database. We will start by asking COPILOT to provide an overview of this dataset.
+
+* **prompt** : Tell me about this data.
+
+Now, we will ask COPILOT to calculate the total income grouped by region.
+
+* **prompt** : Calculate the totale income by region.
+
+Next, we will ask for top 10 customers grouped by region.
+
+* **prompt** : Compute the top 10 customers by region.
+
+Last, we will ask to summarize the income performance for all regions.
+
+* **prompt** : Summarize income performance across all regions.
+
+Let’s now analyze the Airbnb data with Copilote.
+
+* **prompt** : Tell me about this data.
+
+* **prompt** : WHat is sentiment-Based distribution of listings.
+
+### Step 10 : Connect Tableau Software.
+
+*  Download and install Tableau Software Desktop trail edition.
+👉 **[Tableau Desktop - Trial](https://www.tableau.com/en-gb/trial/tableau-software?d=7013y0000020SdwAAE&nc=7013y0000020YzoAAE&utm_content=7013y0000020SdwAAE&utm_source=google&utm_medium=paid_search&utm_campaign=21481929962&utm_adgroup=163628207966&utm_term=free+trial+tableau&utm_matchtype=e&gad_source=1&gad_campaignid=21481929962&gbraid=0AAAAAqUgRK_849ghaYQx5XsScdwOgGrQS&gclid=Cj0KCQjwlrvBBhDnARIsAHEQgORNbQlWCEN9n9H9OhYwhRSrtSSiiPq-ErqBsmdwEmfWWbQeJLYAquUaAifGEALw_wcB&gclsrc=aw.ds)**
+
+* Download and install Snowflake driver for tableau.
+👉 **[Snowflake Drivers](https://developers.snowflake.com/odbc/)**
+
+* Open Tableau Desktop.
+
+![alt text](images/img35.png)
+
+* Connect Tableau to your Snowflake account
+
+![alt text](images/img36.png)
+
+![alt text](images/img37.png)
+
+![alt text](images/img38.png)
+
+![alt text](images/img39.png)
+
+* Select the Virtula warehouse **SNOWFLAKE_LEARNING_WH** and the database **AIRBNB**.
+
+![alt text](images/img40.png)
 
 
 ## Reset your snowflake account
