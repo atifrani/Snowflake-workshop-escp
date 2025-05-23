@@ -853,7 +853,71 @@ Let’s now analyze the Airbnb data with Copilote.
 
 * **prompt** : Tell me about this data.
 
-* **prompt** : WHat is sentiment-Based distribution of listings.
+* **prompt** : What is sentiment-Based distribution of listings.
+
+We’ll now take it a step further by leveraging a Large Language Model to rate customer feedback.
+
+* To begin, we’ll consider a basic example.
+
+```
+SET prompt ='Rate this Airbnb review as one of: awful, poor, okay, good, excellent (awful = worst, excellent = best). Return only the rating, no extra text.
+Review: James has a nice, clean flat near Boxhagener Platz. Check-in was smooth, communication easy. We had return!'
+
+
+select SNOWFLAKE.CORTEX.COMPLETE('mistral-large2', $prompt) as response_to_prompt;
+```
+
+* Next, we’ll create dynamic prompts to process each customer review.
+
+```
+SET prompt ='Rate this Airbnb review as one of: awful, poor, okay, good, excellent (awful = worst, excellent = best). Return only the rating, no extra text.
+Review: '
+
+select concat ($prompt, REVIEW_TEXT ) from full_moon_reviews;
+
+select REVIEW_TEXT, SNOWFLAKE.CORTEX.COMPLETE('mistral-large2', concat ($prompt, REVIEW_TEXT )) as response_to_prompt
+from full_moon_reviews;
+
+
+CREATE OR REPLACE TABLE full_moon_reviews_rate
+as
+select 
+fmr.*, 
+SNOWFLAKE.CORTEX.COMPLETE('mistral-large2', concat ($prompt, REVIEW_TEXT )) as rate
+from full_moon_reviews fmr;
+```
+
+* Create Streamlit web app to list the data.
+
+```
+# Get connection
+session = get_active_session()
+
+# execute sql statement
+sql = f"select count(*) as NB_LISTINGS, rate from full_moon_reviews_rate group by rate ;"
+
+data = session.sql(sql).collect()
+# Create a simple bar chart
+
+st.subheader("RAte-Based Distribution of Listings")
+st.bar_chart(data=data, x="RATE", y="NB_LISTINGS", color="RATE")
+
+
+# Create a select box
+option = st.selectbox(
+     'Select the rate?',
+     ( 'awful', 'poor', 'good', 'excellent'))
+
+# execute sql statement
+sql2 = f"select * from full_moon_reviews_rate where rate = '{option}';"
+
+data2 = session.sql(sql2).collect()
+
+st.subheader("Underlying data")
+
+st.dataframe(data2, use_container_width=True)
+
+```
 
 ### Step 10 : Connect Tableau Software.
 
