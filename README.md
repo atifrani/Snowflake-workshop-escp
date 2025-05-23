@@ -883,18 +883,28 @@ CREATE OR REPLACE TABLE full_moon_reviews_rate
 as
 select 
 fmr.*, 
-SNOWFLAKE.CORTEX.COMPLETE('mistral-large2', concat ($prompt, REVIEW_TEXT )) as rate
+lower (SNOWFLAKE.CORTEX.COMPLETE('mistral-large2', concat ($prompt, REVIEW_TEXT ))) as rate
 from full_moon_reviews fmr;
 ```
 
 * Create Streamlit web app to list the data.
 
 ```
+import streamlit as st
+from snowflake.snowpark.context import get_active_session
+
+
+st.title(f"AIRBNB Web App")
+st.write(
+  """This is our second Streamlit web app 
+     application baseb on AIRBNB data!
+  """
+)
 # Get connection
 session = get_active_session()
 
 # execute sql statement
-sql = f"select count(*) as NB_LISTINGS, rate from full_moon_reviews_rate group by rate ;"
+sql = f"select count(*) as NB_LISTINGS, rate from AIRBNB.GOLD.full_moon_reviews_rate group by rate ;"
 
 data = session.sql(sql).collect()
 # Create a simple bar chart
@@ -909,7 +919,7 @@ option = st.selectbox(
      ( 'awful', 'poor', 'good', 'excellent'))
 
 # execute sql statement
-sql2 = f"select * from full_moon_reviews_rate where rate = '{option}';"
+sql2 = f"select * from AIRBNB.GOLD.full_moon_reviews_rate where rate like '%{option}%';"
 
 data2 = session.sql(sql2).collect()
 
